@@ -1,0 +1,109 @@
+﻿@page "/deleteUser"
+@page "/deleteUser/{UserID:int}"
+
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpClient
+
+<EditForm Model="user">
+    <DataAnnotationsValidator />
+    <div class="card">
+        <div class="card-header">
+            <div class="row text-center text-white bg-primary">
+                <h3>Eliminar Usuario</h3>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col">
+                    <label class="fw-bold">Nombre de Usuario:</label>
+                    <span>@user.UserName</span>
+                </div>
+                <div class="col">
+                    <label class="fw-bold">Email:</label>
+                    <span>@user.Email</span>
+                </div>
+            </div>
+            <div class="row text-center">
+                <label class="fw-bold">¿Seguro que quieres eliminar?</label>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="text-center">
+                <button type="button" class="btn btn-success" @onclick="Eliminar"><i class="fas fa-check"></i> Si</button>
+                <a href="/indexUsers" class="btn btn-danger"><i class="fas fa-times"></i> No</a>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@if (ModalMensaje)
+{
+    <div class="modal d-block" style="z-index: 999999; transition: transform 0.3s ease;">
+        <div class="w-auto position-fixed top-50 start-50 translate-middle">
+            <div class="modal-content" style="border-radius: 20px;">
+                <div class="modal-body bg-@mensajeColor text-center text-white" style="border-radius: 15px;">
+                    <label class="fw-bold">@mensajeTexto</label>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int UserID { get; set; }
+
+    public AspNetUsers user = new AspNetUsers();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (UserID != 0)
+        {
+            var buscado = await HttpClient.GetFromJsonAsync<AspNetUsers>("api/AspNetUsers/" + UserID);
+            if (buscado != null)
+            {
+                user = buscado;
+            }
+            else
+            {
+                await MostrarMensaje("Usuario no encontrado...", "Invalido");
+            }
+        }
+    }
+
+    public async Task Eliminar()
+    {
+        var eliminado = await HttpClient.DeleteAsync("api/AspNetUsers/" + UserID);
+        if (eliminado.IsSuccessStatusCode)
+        {
+            await MostrarMensaje("Eliminado exitoso!", "Valido");
+            NavigationManager.NavigateTo("indexUsers");
+        }
+        else
+        {
+            await MostrarMensaje("Error al eliminar...", "Invalido");
+        }
+    }
+
+    string mensajeTexto = "", mensajeColor = ""; bool ModalMensaje = false;
+
+    public async Task MostrarMensaje(string mensaje, string tipo)
+    {
+        mensajeTexto = mensaje;
+
+        if (tipo == "Valido")
+        {
+            mensajeColor = "success";
+        }
+        else
+        {
+            mensajeColor = "danger";
+        }
+
+        ModalMensaje = true;
+        StateHasChanged();
+        await Task.Delay(3000);
+        ModalMensaje = false;
+        StateHasChanged();
+    }
+}
