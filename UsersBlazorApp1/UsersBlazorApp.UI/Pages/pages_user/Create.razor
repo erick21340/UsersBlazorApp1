@@ -1,0 +1,162 @@
+﻿@page "/createUser"
+@inject IClientService<AspNetUsers> userService
+@inject IClientService<AspNetRoles> roleService
+@inject NavigationManager Navigation
+
+<PageTitle>Crear nuevo usuario</PageTitle>
+
+<div class="container py-4">
+    <div class="card shadow">
+        <!-- Header -->
+        <div class="card-header bg-primary text-white">
+            <h3 class="text-center">Crear nuevo usuario</h3>
+        </div>
+
+        <!-- Body -->
+        <div class="card-body">
+            <div class="row">
+                <div class="col">
+                    <label class="fw-bold">Nombre de Usuario:</label>
+                    <InputText class="form-control" @bind-Value="user.UserName"></InputText>
+                    <ValidationMessage For="@(() => user.UserName)" />
+                </div>
+                <div class="col">
+                    <label class="fw-bold">Email:</label>
+                    <InputText class="form-control" @bind-Value="user.Email"></InputText>
+                    <ValidationMessage For="@(() => user.Email)" />
+                </div>
+                <div class="col">
+                    <label class="fw-bold">Contraseña:</label>
+                    <InputText class="form-control" type="password" @bind-Value="user.PasswordHash"></InputText>
+                    <ValidationMessage For="@(() => user.PasswordHash)" />
+                </div>
+                <div class="col">
+                    <label class="fw-bold">Número de Teléfono:</label>
+                    <InputText class="form-control" @bind-Value="user.PhoneNumber"></InputText>
+                    <ValidationMessage For="@(() => user.PhoneNumber)" />
+                </div>
+            </div>
+
+            <!-- Roles -->
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <label class="form-label"><strong>Roles</strong></label>
+                    <InputSelect class="form-control" @bind-Value="selectedRole">
+                        @foreach (var role in ListaRoles)
+                        {
+                            <option value="@role.Id">@role.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-2 align-self-end">
+                    <button class="btn btn-success mt-3" @onclick="AgregarRol">Agregar</button>
+                </div>
+            </div>
+
+            <!-- Lista de Roles seleccionados -->
+            <table class="table table-bordered mt-3">
+                <thead>
+                    <tr>
+                        <th>Role Name</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var role in SelectedRoles)
+                    {
+                        <tr>
+                            <td>@role.Name</td>
+                            <td>
+                                <button class="btn btn-danger" @onclick="() => EliminarRol(role)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="card-footer text-center">
+            <a href="/indexUsers" class="btn btn-danger"><i class="fas fa-reply"></i> Retroceder</a>
+            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar</button>
+        </div>
+    </div>
+</div>
+
+@if (ModalMensaje)
+{
+    <div class="modal d-block" style="z-index: 999999; transition: transform 0.3s ease;">
+        <div class="w-auto position-fixed top-50 start-50 translate-middle">
+            <div class="modal-content" style="border-radius: 20px;">
+                <div class="modal-body bg-@mensajeColor text-center text-white" style="border-radius: 15px;">
+                    <label class="fw-bold">@mensajeTexto</label>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    public AspNetUsers user = new AspNetUsers();
+    public List<AspNetRoles> ListaRoles { get; set; } = new List<AspNetRoles>();
+    public List<AspNetRoles> SelectedRoles { get; set; } = new List<AspNetRoles>();
+    public int selectedRole { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ListaRoles = await roleService.GetAllAsync();
+    }
+
+    public async Task Guardar()
+    {
+        user.Roles = SelectedRoles;
+        var result = await userService.AddAsync(user);
+
+        if (result != null)
+        {
+            await MostrarMensaje("Guardado exitoso!", "Valido");
+            Navigation.NavigateTo("/Index/Users");
+        }
+        else
+        {
+            await MostrarMensaje("Error al registrar...", "Invalido");
+        }
+    }
+
+    string mensajeTexto = "", mensajeColor = "";
+    bool ModalMensaje = false;
+
+    public async Task MostrarMensaje(string mensaje, string tipo)
+    {
+        mensajeTexto = mensaje;
+
+        if (tipo == "Valido")
+        {
+            mensajeColor = "success";
+        }
+        else
+        {
+            mensajeColor = "danger";
+        }
+
+        ModalMensaje = true;
+        StateHasChanged();
+        await Task.Delay(3000);
+        ModalMensaje = false;
+        StateHasChanged();
+    }
+
+    public void AgregarRol()
+    {
+        var rol = ListaRoles.FirstOrDefault(r => r.Id == selectedRole);
+        if (rol != null && !SelectedRoles.Contains(rol))
+        {
+            SelectedRoles.Add(rol);
+        }
+    }
+
+    public void EliminarRol(AspNetRoles role)
+    {
+        SelectedRoles.Remove(role);
+    }
+}
