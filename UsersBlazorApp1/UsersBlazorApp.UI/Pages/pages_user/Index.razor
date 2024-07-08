@@ -1,0 +1,156 @@
+﻿@page "/indexcliente"
+
+@inject HttpClient httpClient
+@inject IJSRuntime JSRuntime
+
+<EditForm Model="ListaUsuarios" class="border shadow-lg p-3 rounded">
+    <div class="card-header bg-primary text-white text-center py-2 rounded">
+        <h3 style="font-weight: bold;" class="mb-0 font-weight-bold">Centro de Clientes</h3>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3 align-items-end">
+            <div class="col-md-3">
+                <label style="font-weight: bold;" for="Filtro" class="form-label">Filtrar por:</label>
+                <select @bind="filtro" class="form-select">
+                    <option value="id">ID</option>
+                    <option value="nombre">Nombre</option>
+                    <option value="rnc">RNC</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label style="font-weight: bold;" for="ValorFiltro" class="form-label">Búsqueda:</label>
+                <div class="input-group">
+                    <input @bind="valorFiltro" class="form-control" placeholder="Buscar" />
+                    <button @onclick="Buscar" class="btn btn-outline-primary" type="button">
+                        <span class="fas fa-search"></span> Buscar
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3 text-end">
+                <a href="/createUser" class="btn btn-success" type="button"><span class="fas fa-plus"></span> Crear </a>
+            </div>
+        </div>
+    </div>
+    <table class="table table-bordered text-center">
+        <thead class="bg-primary text-white">
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Editar</th>
+                <th>Detalle</th>
+                <th>Eliminar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (ListaUsuarios.Any())
+            {
+                @foreach (var usuario in ListaUsuarios)
+                {
+                    <tr>
+                        <td>@usuario.Id</td>
+                        <td>@usuario.UserName</td>
+                        <td>@usuario.Email</td>
+                        <td>@usuario.PhoneNumber</td>
+                        <td>
+                            <a href="/editarCliente/@usuario.Id" style="border: none; background-color: transparent;" class="btn-editar text-warning">
+                                <span class="fas fa-edit" style="font-size: 1.5rem;"></span> Editar
+                            </a>
+
+                        </td>
+                        <td>
+                            <a href="/verCliente/@usuario.Id" style="border: none; background-color: transparent;" class="btn-ver text-primary">
+                                <span class="fas fa-eye" style="font-size: 1.5rem;"></span> Ver
+                            </a>
+
+                        </td>
+                        <td>
+                            <a href="/eliminarCliente/@usuario.Id" style="border: none; background-color: transparent;" class="btn-eliminar text-danger">
+                                <span class="fas fa-trash-alt" style="font-size: 1.5rem;"></span> Eliminar
+                            </a>
+
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="7" class="text-center">No se ha encontrado ningún usuario.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</EditForm>
+
+@if (ModalMensaje)
+{
+    <div class="modal d-block" style="z-index: 999999; transition: transform 0.3s ease;">
+        <div class="w-auto position-fixed top-50 start-50 translate-middle">
+            <div class="modal-content" style="border-radius: 20px;">
+                <div class="modal-body bg-@mensajeColor text-center text-white" style="border-radius: 15px;">
+                    <label class="fw-bold">@mensajeTexto</label>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    public AspNetUsers usuarios = new AspNetUsers();
+
+    private string filtro = "id";
+    private string valorFiltro = "";
+
+    public List<AspNetUsers> ListaUsuarios = new List<AspNetUsers>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ListaUsuarios = await httpClient.GetFromJsonAsync<List<AspNetUsers>>("api/AspNetUsers");
+    }
+
+    private async Task Buscar()
+    {
+        if (valorFiltro.Trim() != "")
+        {
+            if (filtro == "id" && int.TryParse(valorFiltro, out int usuarioId))
+            {
+                ListaUsuarios = (await httpClient.GetFromJsonAsync<List<AspNetUsers>>($"api/AspNetUsers/{usuarioId}")).ToList();
+            }
+            else if (filtro == "nombre")
+            {
+                ListaUsuarios = (await httpClient.GetFromJsonAsync<List<AspNetUsers>>("api/AspNetUsers"))!.Where(c => c.UserName == valorFiltro).ToList();
+            }
+            else if (filtro == "rnc")
+            {
+                ListaUsuarios = (await httpClient.GetFromJsonAsync<List<AspNetUsers>>("api/AspNetUsers"))!.Where(c => c.Email == valorFiltro).ToList();
+            }
+
+            if (ListaUsuarios == null || ListaUsuarios.Count == 0)
+            {
+                await MostrarMensaje("Usuario no encontrado", "Invalido", "clientenoencontrado.mp3");
+            }
+        }
+        else
+        {
+            ListaUsuarios = await httpClient.GetFromJsonAsync<List<AspNetUsers>>("api/AspNetUsers");
+        }
+    }
+
+    string mensajeTexto = "", mensajeColor = ""; bool ModalMensaje = false;
+
+    public async Task MostrarMensaje(string mensaje, string tipo, string audio)
+    {
+        mensajeTexto = mensaje;
+        await JSRuntime.InvokeVoidAsync("playAudio", "recursos/audios/" + audio);
+
+        mensajeColor = tipo == "Valido" ? "success" : "danger";
+
+        ModalMensaje = true;
+        StateHasChanged();
+        await Task.Delay(3000);
+        ModalMensaje = false;
+        StateHasChanged();
+    }
+}
